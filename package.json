@@ -14,7 +14,13 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:reset": "prisma migrate reset && npm run db:seed",
     "db:studio": "prisma studio",
-    "db:deploy": "prisma db push && npm run db:seed"
+    "db:deploy": "prisma db push && npm run db:seed",
+    "db:local:setup": "./scripts/setup-local-db.sh",
+    "db:local:init": "npm run db:local:setup && npm run db:push && npm run db:seed",
+    "dev:local": "DATABASE_URL='postgresql://postgres:password@localhost:5432/risikoapp?schema=public' npm run dev",
+    "db:local:push": "DATABASE_URL='postgresql://postgres:password@localhost:5432/risikoapp?schema=public' npx prisma db push",
+    "db:local:seed": "DATABASE_URL='postgresql://postgres:password@localhost:5432/risikoapp?schema=public' npm run db:seed",
+    "db:local:studio": "DATABASE_URL='postgresql://postgres:password@localhost:5432/risikoapp?schema=public' npx prisma studio"
   },
   "keywords": [],
   "author": "",
