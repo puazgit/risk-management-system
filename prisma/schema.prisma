@@ -1,0 +1,639 @@
+// Database yang digunakan (contoh: PostgreSQL)
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// =========================================================================
+// AUTHENTICATION MODELS (NextAuth.js)
+// =========================================================================
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verificationtokens")
+}
+
+enum Role {
+  USER
+  ADMIN
+  RISK_OWNER
+  LINI_KEDUA
+  SPI
+  DIREKSI
+  DEWAN_PENGAWAS
+}
+
+model AuthUser {
+  id               String    @id @default(cuid())
+  name             String?
+  email            String    @unique
+  emailVerified    DateTime?
+  image            String?
+  password         String?
+  role             Role      @default(USER)
+  resetToken       String?   // Token untuk reset password
+  resetTokenExpiry DateTime? // Expiry untuk reset token
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  accounts Account[]
+  sessions Session[]
+
+  @@map("auth_users")
+}
+
+// =========================================================================
+// 1. DATA MASTER & KONFIGURASI (FR1.5, FR1.1)
+// =========================================================================
+
+// Model untuk Taksonomi Risiko BUMN (Sebagai referensi klasifikasi risiko) [4, 12, 13]
+model TaksonomiRisiko {
+  id               Int    @id @default(autoincrement())
+  categoryBUMN     String // Kategori Risiko Level 1 (misal: Risiko Operasional)
+  categoryT2T3KBUMN String // Kategori Risiko Level 2 & 3
+  description      String?
+
+  Risiko Risiko[]
+
+  @@map("master_taksonomi_risiko")
+}
+
+// Kriteria Dampak dan Probabilitas (Digunakan untuk perhitungan Heatmap) [4, 14, 15]
+model KriteriaRisiko {
+  id          Int     @id @default(autoincrement())
+  type        String // 'Dampak' atau 'Probabilitas'
+  scale       String // Contoh: Sangat Rendah (1), Tinggi (4), Hampir Pasti Terjadi (5)
+  value       Int     // Nilai numerik skala
+  description String?
+
+  @@map("master_kriteria_risiko")
+}
+
+// Data Pengguna dan Peran (Lini Pertama, Lini Kedua, SPI, Direksi, Dewan Pengawas) [11, 16]
+model User {
+  id            Int     @id @default(autoincrement())
+  username      String  @unique
+  name          String
+  email         String  @unique
+  unitId        Int
+  role          String  // Contoh: 'RiskOwner', 'LiniKedua', 'SPI', 'Direksi' [17]
+  hakAkses      String? // Detail hak akses granular [18]
+
+  unit UnitKerja @relation(fields: [unitId], references: [id])
+  
+  // Relasi ke tabel lain
+  PerlakuanRisiko   PerlakuanRisiko[]
+  ICT_Testing       ICT_Testing[]
+  AuditTrail        AuditTrail[]
+  RiskNotification  RiskNotification[]
+
+  @@map("master_user")
+}
+
+// Unit Kerja (Risk Owner atau Unit Pengelola Risiko) [1]
+model UnitKerja {
+  id             Int     @id @default(autoincrement())
+  code           String  @unique
+  name           String
+  hierarchyLevel String? // Lini Pertama atau Lini Kedua [19, 20]
+
+  users           User[]
+  Risiko          Risiko[]
+  SasaranStrategis SasaranStrategis[]
+
+  @@map("master_unit_kerja")
+}
+
+// Strategi Risiko Korporat (RAS, Nilai Ambang Risiko) [3, 21, 22]
+model StrategiRisiko {
+  id             Int      @id @default(autoincrement())
+  name           String
+  description    String?
+  nilaiAmbang    Float?   // Risk Appetite Statement
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("master_strategi_risiko")
+}
+
+// =========================================================================
+// 2. PROFIL RISIKO (FR1.2, FR1.3)
+// =========================================================================
+
+// Sasaran Strategis Perusahaan/Unit Kerja [5, 23]
+model SasaranStrategis {
+  id             Int     @id @default(autoincrement())
+  unitId         Int
+  sasaran        String
+  strategi       String
+  expectedOutcome String
+  riskValueTimbul Float?
+  limitRisiko    Float?
+  
+  unit UnitKerja @relation(fields: [unitId], references: [id])
+  Risiko Risiko[]
+
+  @@map("trx_sasaran_strategis")
+}
+
+// Entitas Utama RISIKO (Identifikasi Risiko) [1, 5]
+model Risiko {
+  id              Int      @id @default(autoincrement())
+  sasaranId       Int      // Foreign Key ke SasaranStrategis
+  ownerUnitId     Int      // Foreign Key ke UnitKerja (Risk Owner)
+  kategoriId      Int      // Foreign Key ke TaksonomiRisiko
+  
+  riskNumber      String   @unique // No. Risiko
+  namaRisiko      String
+  deskripsi       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relasi
+  sasaran         SasaranStrategis @relation(fields: [sasaranId], references: [id])
+  ownerUnit       UnitKerja @relation(fields: [ownerUnitId], references: [id])
+  kategori        TaksonomiRisiko @relation(fields: [kategoriId], references: [id])
+  
+  // Data terkait
+  risikoInheren   RisikoInheren?
+  risikoResidual  RisikoResidual?
+  kontrolExisting KontrolExisting[]
+  perlakuanRisiko PerlakuanRisiko[]
+  KRI             KRI[]
+  realisasiRisiko RealisasiRisikoResidual[]
+
+  @@map("trx_risiko_identifikasi")
+}
+
+// Penilaian Risiko Inheren (Inherent Risk) [6, 24]
+model RisikoInheren {
+  id                  Int      @id @default(autoincrement())
+  riskId              Int      @unique
+  
+  // Kuantifikasi [25]
+  inherenDampakValue  Float
+  inherenDampakScale  Int
+  inherenProbValue    Float
+  inherenProbScale    Int
+  
+  // Output Perhitungan Otomatis (FR3.1)
+  inherenExposure     Float
+  inherenLevel        String // Level Risiko BUMN (misal: High, Moderate)
+  
+  // Kualifikasi [26]
+  penjelasanDampakKualitatif String?
+  
+  risiko Risiko @relation(fields: [riskId], references: [id])
+
+  @@map("trx_risiko_inheren")
+}
+
+// Penilaian Risiko Residual (Residual Risk) [7, 24]
+model RisikoResidual {
+  id                  Int      @id @default(autoincrement())
+  riskId              Int      @unique
+  
+  // Kuantifikasi [27, 28]
+  residualDampakValue Float
+  residualDampakScale Int
+  residualProbValue   Float
+  residualProbScale   Int
+  
+  // Output Perhitungan Otomatis (FR3.1)
+  residualExposure    Float
+  residualLevel       String
+  
+  targetResidual      String? // Target Risiko Residual [7]
+  
+  risiko Risiko @relation(fields: [riskId], references: [id])
+
+  @@map("trx_risiko_residual")
+}
+
+// Key Risk Indicators (KRI) [8, 29]
+model KRI {
+  id                Int     @id @default(autoincrement())
+  riskId            Int
+  indicatorName     String
+  unitSatuan        String
+  thresholdCategory String?
+  thresholdValue    Float? // Nilai Batasan/Threshold KRI
+
+  risiko Risiko @relation(fields: [riskId], references: [id])
+
+  @@map("trx_kri")
+}
+
+// Kontrol Eksisting (Existing Control) [6]
+model KontrolExisting {
+  id                   Int     @id @default(autoincrement())
+  riskId               Int
+  controlType          String? // Jenis Existing Control
+  deskripsiDampak      String?
+  effectivenessRating  String? // Penilaian Efektivitas Kontrol [29]
+
+  risiko Risiko @relation(fields: [riskId], references: [id])
+
+  @@map("trx_kontrol_existing")
+}
+
+// Rencana Perlakuan Risiko (Risk Treatment Plan) [7, 8]
+model PerlakuanRisiko {
+  id                Int      @id @default(autoincrement())
+  riskId            Int
+  picId             Int      // PIC (Person In Charge) [8, 30]
+  treatmentOption   String?  // Opsi Perlakuan Risiko [14]
+  treatmentPlan     String
+  output            String
+  costRupiah        Float?   // Biaya Perlakuan Risiko [8]
+  timelineMonths    Int?     // Timeline (Bulan)
+  rkapProgramType   String?  // Jenis Program Dalam RKAP
+
+  risiko Risiko @relation(fields: [riskId], references: [id])
+  pic User @relation(fields: [picId], references: [id])
+  
+  // Realisasi
+  realisasi RealisasiPerlakuanRisiko[]
+
+  @@map("trx_rencana_perlakuan_risiko")
+}
+
+// =========================================================================
+// 3. DATA PEMANTAUAN & EVALUASI (FR5.3, FR2.2)
+// =========================================================================
+
+// Realisasi Risiko Residual (Real-time monitoring data) [8, 9]
+model RealisasiRisikoResidual {
+  id                 Int      @id @default(autoincrement())
+  riskId             Int
+  periode            DateTime // Bulan/Triwulan Realisasi
+  
+  // Realisasi Kuantifikasi [31]
+  realisasiDampakValue Float
+  realisasiDampakScale Int
+  realisasiProbValue   Float
+  realisasiProbScale   Int
+  
+  realisasiExposure    Float
+  realisasiLevel       String
+  
+  efektivitasPerlakuan String? // Efektifitas Perlakuan Risiko [31]
+
+  // Relasi ke model Risiko (bisa juga berelasi ke RisikoResidual jika ingin melacak perubahan dari target)
+  risiko Risiko @relation(fields: [riskId], references: [id])
+
+  @@map("trx_realisasi_risiko_residual")
+}
+
+// Realisasi Pelaksanaan Perlakuan Risiko dan Biaya [9, 32]
+model RealisasiPerlakuanRisiko {
+  id                 Int      @id @default(autoincrement())
+  perlakuanId        Int
+  periode            DateTime // Periode Triwulanan/Bulanan
+  
+  // Realisasi Metrik [33, 34]
+  realisasiKRI       Float?
+  realisasiRencana   String?
+  realisasiOutput    String?
+  realisasiBiaya     Float?   // Realisasi Biaya Perlakuan Risiko [9]
+  persentaseSerapan  Float?
+  status             String?  // Status Rencana Perlakuan Risiko
+  progress           String?
+  
+  perlakuan PerlakuanRisiko @relation(fields: [perlakuanId], references: [id])
+
+  @@map("trx_realisasi_perlakuan")
+}
+
+// Catatan Kejadian Kerugian (Loss Event Database) [9, 35-38]
+model KejadianKerugian {
+  id                   Int      @id @default(autoincrement())
+  tanggalKejadian      DateTime
+  namaKejadian         String
+  kategoriRisikoBUMN   String?  // Kategori Risiko BUMN [10]
+  penyebabKejadian     String?
+  deskripsi            String?
+  nilaiKerugian        Float?   // Nilai Kerugian [10]
+  kejadianBerulang     Boolean?
+  
+  // Tindak Lanjut [37]
+  mitigasiDirencanakan String?
+  realisasiMitigasi    String?
+  perbaikanMendatang   String?
+  
+  // Asuransi [38]
+  statusAsuransi       String?
+  nilaiPremi           Float?
+  nilaiKlaim           Float?
+
+  @@map("trx_kejadian_kerugian")
+}
+
+// Internal Control Testing (ICT) [10, 38]
+model ICT_Testing {
+  id                 Int      @id @default(autoincrement())
+  testingDate        DateTime
+  picId              Int
+  sasaranBUMN        String?
+  riskEvent          String?  // Business Process/Peristiwa Risiko [11]
+  keyControl         String?
+  metodePengujian    String?
+  kelemahanKontrol   String?
+  rencanaTindakLanjut String?
+  dueDate            DateTime?
+  statusTindakLanjut String?
+
+  pic User @relation(fields: [picId], references: [id])
+
+  @@map("trx_internal_control_testing")
+}
+
+// Data untuk Stress Testing (FR2.3, FR6.2)
+model StressTesting {
+  id                  Int      @id @default(autoincrement())
+  periode             String
+  skenario            String   // Worst, Base, Best [39]
+  
+  // Asumsi Makro Ekonomi [11, 39, 40]
+  pertumbuhanEkonomi Float?
+  inflasi            Float?
+  sukuBunga          Float?
+  nilaiTukarRupiah   Float?
+  
+  prognosaExposure   Float?
+
+  @@map("trx_stress_testing")
+}
+
+// =========================================================================
+// 4. ALUR KERJA DAN PELAPORAN (FR4.1, FR5.3, NFR4.3)
+// =========================================================================
+
+// Pelacakan status dokumen atau laporan
+model DokumenStatus {
+  id             Int      @id @default(autoincrement())
+  documentType   String   // Contoh: 'ProfilRisikoUtama', 'StrategiRisiko' [41]
+  entityId       Int      // ID entitas terkait (misal: ID Risiko atau ID Sasaran)
+  currentStatus  String   // Contoh: 'Drafting', 'In Review Direktur', 'Approved Dewan Pengawas' [42]
+  lastUpdated    DateTime @default(now())
+
+  // Riwayat persetujuan (untuk alur kerja berjenjang FR4.1)
+  ApprovalLog ApprovalLog[]
+
+  @@map("sys_document_status")
+}
+
+// Log Persetujuan
+model ApprovalLog {
+  id           Int      @id @default(autoincrement())
+  documentStatusId Int
+  approverRole String   // Peran yang menyetujui (misal: 'Direktur MR') [42]
+  approvalDate DateTime @default(now())
+  action       String   // 'Approve', 'Reject', 'Review'
+  note         String?
+
+  documentStatus DokumenStatus @relation(fields: [documentStatusId], references: [id])
+
+  @@map("sys_approval_log")
+}
+
+// Audit Trail (Untuk mencatat semua perubahan data dan aktivitas pengguna - NFR4.3)
+model AuditTrail {
+  id           Int      @id @default(autoincrement())
+  timestamp    DateTime @default(now())
+  userId       Int
+  action       String   // CREATE, UPDATE, DELETE, LOGIN [43]
+  entityName   String   // Nama tabel yang dimodifikasi
+  entityId     Int?
+  oldValue     String?  // Data lama (sebelum perubahan)
+  newValue     String?  // Data baru (setelah perubahan)
+  
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("sys_audit_trail")
+}
+
+// =========================================================================
+// 5. ADDITIONAL MODELS FOR ENHANCED FUNCTIONALITY
+// =========================================================================
+
+// Risk Dashboard Configuration
+model DashboardConfig {
+  id           Int      @id @default(autoincrement())
+  userId       Int?     // NULL untuk konfigurasi global
+  unitId       Int?     // Konfigurasi per unit
+  widgetType   String   // 'risk_overview', 'risk_matrix', 'kri_alerts'
+  widgetOrder  Int
+  isVisible    Boolean  @default(true)
+  settings     String?  // JSON configuration
+
+  @@map("sys_dashboard_config")
+}
+
+// Risk Notification System
+model RiskNotification {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  riskId      Int?
+  type        String   // 'KRI_THRESHOLD', 'TREATMENT_DUE', 'ASSESSMENT_REQUIRED'
+  title       String
+  message     String
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("sys_risk_notifications")
+}
+
+// Risk Report Templates
+model ReportTemplate {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  template    String   // JSON template configuration
+  reportType  String   // 'MONTHLY', 'QUARTERLY', 'ANNUAL', 'CUSTOM'
+  isActive    Boolean  @default(true)
+  createdBy   String?  // User ID who created the template
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  schedules   ScheduledReport[]
+  history     ReportHistory[]
+
+  @@map("sys_report_templates")
+}
+
+// =========================================================================
+// 6. ANALYTICS & REPORTING MODELS (PHASE 2A)
+// =========================================================================
+
+// Risk Metrics Aggregation for Analytics
+model RiskMetrics {
+  id              Int      @id @default(autoincrement())
+  riskId          Int
+  periode         DateTime // Monthly aggregation
+  unitId          Int
+  kategoriId      Int
+  
+  // Computed Metrics
+  inherentScore   Float
+  residualScore   Float
+  treatmentCount  Int
+  kriCount        Int
+  overdueTreatments Int
+  
+  // Trend Indicators
+  scoreChange     Float    // vs previous period
+  trendDirection  String   // UP, DOWN, STABLE
+  
+  // Performance Metrics
+  treatmentEffectiveness Float
+  kriPerformance  Float
+  
+  createdAt       DateTime @default(now())
+  
+  @@unique([riskId, periode])
+  @@map("analytics_risk_metrics")
+}
+
+// Dashboard Analytics Pre-computed Data
+model DashboardAnalytics {
+  id                    Int      @id @default(autoincrement())
+  periode               DateTime
+  unitId                Int?     // NULL for organization-wide
+  
+  // Risk Overview
+  totalRisks            Int
+  highRisks             Int
+  criticalKRIs          Int
+  overdueTreatments     Int
+  
+  // Trend Analysis
+  riskTrend             String   // UP, DOWN, STABLE
+  treatmentProgress     Float    // Percentage
+  complianceScore       Float
+  
+  // Heat Map Data
+  heatMapData           String   // JSON for risk matrix
+  
+  lastUpdated           DateTime @default(now())
+  
+  @@unique([periode, unitId])
+  @@map("analytics_dashboard")
+}
+
+// Report Generation History
+model ReportHistory {
+  id            Int      @id @default(autoincrement())
+  templateId    Int?
+  generatedBy   String   // User ID
+  reportType    String
+  parameters    String   // JSON filters & settings
+  filePath      String?  // PDF file location
+  status        String   // GENERATING, COMPLETED, FAILED
+  createdAt     DateTime @default(now())
+  completedAt   DateTime?
+  
+  template      ReportTemplate? @relation(fields: [templateId], references: [id])
+  
+  @@map("analytics_report_history")
+}
+
+// =========================================================================
+// AUTOMATED REPORT GENERATION MODELS
+// =========================================================================
+
+// Scheduled Report Configuration
+model ScheduledReport {
+  id                Int      @id @default(autoincrement())
+  templateId        Int
+  name              String
+  description       String?
+  cronExpression    String   // Cron format: "0 9 * * 1" (every Monday at 9 AM)
+  recipientEmails   String   // JSON array of email addresses
+  isActive          Boolean  @default(true)
+  lastRun           DateTime?
+  nextRun           DateTime?
+  createdBy         String   // User ID
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  // Relations  
+  template          ReportTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  executions        ReportExecution[]
+  
+  @@map("scheduled_reports")
+}
+
+// Report Execution Log
+model ReportExecution {
+  id                Int      @id @default(autoincrement())
+  scheduledReportId Int
+  status            String   // PENDING, RUNNING, COMPLETED, FAILED
+  startedAt         DateTime @default(now())
+  completedAt       DateTime?
+  filePath          String?  // Generated PDF file path
+  emailSent         Boolean  @default(false)
+  emailSentAt       DateTime?
+  errorMessage      String?
+  executionTime     Int?     // Time in milliseconds
+  
+  // Relations
+  scheduledReport   ScheduledReport @relation(fields: [scheduledReportId], references: [id], onDelete: Cascade)
+  
+  @@map("report_executions")
+}
+
+// Email Templates for Report Distribution
+model EmailTemplate {
+  id          Int      @id @default(autoincrement())
+  name        String
+  subject     String
+  htmlBody    String   @db.Text
+  textBody    String?  @db.Text
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("email_templates")
+}
