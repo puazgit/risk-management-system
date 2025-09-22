@@ -3,6 +3,24 @@ import { NextResponse } from "next/server"
 
 export default withAuth(
   function middleware(req) {
+    const response = NextResponse.next()
+    
+    // Add security headers
+    response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+    response.headers.set('X-Frame-Options', 'DENY')
+    response.headers.set('X-Content-Type-Options', 'nosniff')
+    response.headers.set('X-XSS-Protection', '1; mode=block')
+    
+    // Add cache control for static assets
+    if (req.nextUrl.pathname.startsWith('/_next/static')) {
+      response.headers.set('Cache-Control', 'public, max-age=31536000, immutable')
+    }
+    
+    // Add cache control for API routes
+    if (req.nextUrl.pathname.startsWith('/api')) {
+      response.headers.set('Cache-Control', 'public, max-age=300, s-maxage=600')
+    }
+    
     // Check if user is trying to access admin routes
     if (req.nextUrl.pathname.startsWith("/admin")) {
       const token = req.nextauth.token
@@ -14,7 +32,7 @@ export default withAuth(
       }
     }
     
-    return NextResponse.next()
+    return response
   },
   {
     callbacks: {
@@ -37,6 +55,7 @@ export const config = {
     "/admin/:path*",
     "/risks/:path*",
     "/analytics/:path*",
-    "/master/:path*"
+    "/master/:path*",
+    "/((?!api|_next/static|_next/image|favicon.ico).*)"
   ]
 }

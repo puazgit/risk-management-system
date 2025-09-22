@@ -20,7 +20,9 @@
     "dev:local": "DATABASE_URL='postgresql://postgres:password@localhost:5432/risikoapp?schema=public' npm run dev",
     "db:local:push": "DATABASE_URL='postgresql://postgres:password@localhost:5432/risikoapp?schema=public' npx prisma db push",
     "db:local:seed": "DATABASE_URL='postgresql://postgres:password@localhost:5432/risikoapp?schema=public' npm run db:seed",
-    "db:local:studio": "DATABASE_URL='postgresql://postgres:password@localhost:5432/risikoapp?schema=public' npx prisma studio"
+    "db:local:studio": "DATABASE_URL='postgresql://postgres:password@localhost:5432/risikoapp?schema=public' npx prisma studio",
+    "analyze": "cross-env ANALYZE=true next build",
+    "build:analyze": "npm run analyze"
   },
   "keywords": [],
   "author": "",
@@ -29,6 +31,7 @@
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
     "@next-auth/prisma-adapter": "^1.0.7",
+    "@next/bundle-analyzer": "^15.5.3",
     "@prisma/client": "^6.16.2",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-avatar": "^1.1.10",
@@ -51,6 +54,7 @@
     "bcryptjs": "^3.0.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "cross-env": "^10.0.0",
     "date-fns": "^4.1.0",
     "eslint": "^9.35.0",
     "eslint-config-next": "^15.5.3",
