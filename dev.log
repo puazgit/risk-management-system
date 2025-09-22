@@ -1,0 +1,32 @@
+
+> risikoapp@0.1.0 dev
+> next dev
+
+   ▲ Next.js 15.5.3
+   - Local:        http://localhost:3000
+   - Network:      http://10.220.90.124:3000
+   - Environments: .env.local, .env
+   - Experiments (use with caution):
+     · optimizePackageImports
+
+ ✓ Starting...
+ ✓ Ready in 1668ms
+ ○ Compiling /api/health ...
+ ✓ Compiled /api/health in 603ms (298 modules)
+Health check failed: Error [InvalidDatasourceError]: Error validating datasource `db`: the URL must start with the protocol `prisma://` or `prisma+postgres://`
+    at GET (app/api/health/route.ts:7:18)
+   5 |   try {
+   6 |     // Test database connection
+>  7 |     await prisma.$connect();
+     |                  ^
+   8 |     
+   9 |     // Simple query to verify database is working
+  10 |     const userCount = await prisma.user.count(); {
+  clientVersion: '6.16.2',
+  cause: undefined,
+  isRetryable: false,
+  code: 'P6001'
+}
+ GET /api/health 500 in 834ms
+ ✓ Compiled in 224ms (104 modules)
+[?25h

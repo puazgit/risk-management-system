@@ -4,8 +4,10 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
-// Use DATABASE_URL_PROD if available, fallback to DATABASE_URL
-const databaseUrl = process.env.DATABASE_URL_PROD || process.env.DATABASE_URL
+// Use DATABASE_URL_PROD for production, DATABASE_URL for development
+const databaseUrl = process.env.NODE_ENV === 'production' 
+  ? (process.env.DATABASE_URL_PROD || process.env.DATABASE_URL)
+  : process.env.DATABASE_URL
 
 export const prisma = globalForPrisma.prisma ?? new PrismaClient({
   datasources: {
