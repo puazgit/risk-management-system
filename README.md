@@ -1,4 +1,17 @@
-# 🛡️ Aplikasi Manajemen Risiko
+# Risk Management System
+
+Aplikasi Manajemen Risiko modern dengan Next.js 15, Prisma, dan PostgreSQL.
+
+## � **Production URL**
+- **Live Application**: [https://risikoapp.vercel.app](https://risikoapp.vercel.app)
+
+## ✨ **Auto-Deployment Status: ACTIVE** 
+- ✅ GitHub → Vercel integration configured
+- ✅ Every push to `main` branch triggers automatic deployment
+- ✅ Local development with Docker PostgreSQL
+- ✅ Production with Prisma Postgres
+
+## 📊 **Features** Aplikasi Manajemen Risiko
 
 Aplikasi manajemen risiko modern yang dibangun dengan teknologi terdepan untuk membantu organisasi mengelola dan memantau risiko secara efektif.
 
