@@ -283,19 +283,76 @@ npx prisma studio # buka Prisma Studio
 
 ## 🚀 Deployment
 
-### Vercel (Recommended)
-1. Push code ke GitHub
-2. Connect repository di Vercel
-3. Set environment variables
-4. Deploy automatically
+### Coolify (Self-Hosted) - Recommended
+Aplikasi ini dikonfigurasi untuk deployment dengan Coolify, platform self-hosted deployment yang powerful.
 
-### Docker Production
+#### Prerequisites
+1. Server dengan Docker dan Coolify terinstall
+2. Domain atau subdomain yang sudah di-pointing ke server
+3. Repository GitHub/GitLab yang accessible
+
+#### Deployment Steps
+
+1. **Setup Repository di Coolify**
+   ```bash
+   # Push code ke GitHub terlebih dahulu
+   git add .
+   git commit -m "Ready for Coolify deployment"
+   git push origin main
+   ```
+
+2. **Create Service di Coolify**
+   - Login ke Coolify dashboard
+   - Create new project dan service
+   - Connect ke repository GitHub
+   - Pilih branch `main`
+
+3. **Environment Variables**
+   Configure environment variables di Coolify menggunakan template `.env.coolify`:
+   ```env
+   DATABASE_URL="postgresql://postgres:password@postgres:5432/risikoapp"
+   NEXTAUTH_URL="https://your-domain.com"
+   NEXTAUTH_SECRET="generate-secure-secret"
+   GOOGLE_CLIENT_ID="" # Optional
+   GOOGLE_CLIENT_SECRET="" # Optional
+   NODE_ENV="production"
+   ```
+
+4. **Generate Secrets**
+   ```bash
+   # Generate NEXTAUTH_SECRET
+   openssl rand -base64 32
+   ```
+
+5. **Deploy**
+   - Coolify akan otomatis detect Dockerfile dan docker-compose.yml
+   - Build process menggunakan multi-stage Docker build
+   - Database PostgreSQL akan di-provision otomatis
+   - Health check endpoint: `/api/health`
+
+#### Production Configuration
+- **Build**: Menggunakan Docker multi-stage build untuk optimasi size
+- **Output**: Next.js standalone untuk containerized deployment
+- **Database**: PostgreSQL 15 dengan persistent volumes
+- **Health Check**: Automated health monitoring di `/api/health`
+- **Auto-scaling**: Configured untuk restart otomatis
+
+### Manual Docker Production
+Jika ingin deploy manual dengan Docker:
+
 ```bash
 # Build production image
 docker build -t risikoapp .
 
-# Run with environment
-docker run -p 3000:3000 risikoapp
+# Run dengan docker-compose
+docker-compose up -d
+
+# Atau run standalone
+docker run -p 3000:3000 \
+  -e DATABASE_URL="your-database-url" \
+  -e NEXTAUTH_SECRET="your-secret" \
+  -e NEXTAUTH_URL="https://your-domain.com" \
+  risikoapp
 ```
 
 ## 🤝 Contributing

@@ -11,6 +11,8 @@ const nextConfig = {
   },
   // Explicitly configure source directory
   pageExtensions: ['js', 'jsx', 'ts', 'tsx'],
+  // Enable standalone output for Docker deployment
+  output: 'standalone',
 }
 
 module.exports = nextConfig
