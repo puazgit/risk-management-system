@@ -42,14 +42,21 @@ export async function POST(
     }
 
     const body = await request.json()
+    console.log('Received assessment data:', body) // Debug log
+    
     const validatedData = assessmentSchema.parse(body)
+    console.log('Validated data:', validatedData) // Debug log
 
-    // Calculate exposure and level
-    const exposure = validatedData.dampakValue * validatedData.probValue
+    // Calculate exposure and level correctly
+    const exposure = validatedData.dampakScale * validatedData.probScale
     const level = calculateRiskLevel(exposure)
+    
+    console.log(`Calculated exposure: ${exposure}, level: ${level}`) // Debug log
 
     if (validatedData.type === "INHERENT") {
       // Create or update inherent risk assessment
+      console.log(`Creating/updating inherent assessment for risk ${riskId}`) // Debug log
+      
       const assessment = await prisma.risikoInheren.upsert({
         where: { riskId },
         create: {
@@ -73,10 +80,13 @@ export async function POST(
         }
       })
 
+      console.log('Inherent assessment saved:', assessment) // Debug log
       return NextResponse.json(assessment)
 
     } else {
       // Create or update residual risk assessment
+      console.log(`Creating/updating residual assessment for risk ${riskId}`) // Debug log
+      
       const assessment = await prisma.risikoResidual.upsert({
         where: { riskId },
         create: {
@@ -100,6 +110,7 @@ export async function POST(
         }
       })
 
+      console.log('Residual assessment saved:', assessment) // Debug log
       return NextResponse.json(assessment)
     }
 

@@ -356,7 +356,7 @@ export function RiskManagementTabs({ riskId }: RiskManagementTabsProps) {
                             <div className="flex items-center space-x-4 text-xs">
                               <div className="flex items-center space-x-1">
                                 <User className="h-3 w-3" />
-                                <span>{treatment.pic.name} ({treatment.pic.unit.name})</span>
+                                <span>{treatment.pic.name} {treatment.pic.unit ? `(${treatment.pic.unit.name})` : ''}</span>
                               </div>
                               {treatment.costRupiah && (
                                 <div className="flex items-center space-x-1">

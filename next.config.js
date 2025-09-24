@@ -2,51 +2,14 @@
 const nextConfig = {
   experimental: {
     optimizePackageImports: ['@radix-ui/react-icons'],
-    serverComponentsExternalPackages: ['prisma'],
-    turbo: {
-      rules: {
-        '*.svg': {
-          loaders: ['@svgr/webpack'],
-          as: '*.js',
-        },
-      },
-    },
   },
-  compiler: {
-    removeConsole: process.env.NODE_ENV === 'production',
+  env: {
+    NEXTAUTH_URL: process.env.NEXTAUTH_URL,
   },
-  images: {
-    formats: ['image/webp', 'image/avif'],
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
-    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-    minimumCacheTTL: 60,
+  publicRuntimeConfig: {
+    NEXTAUTH_URL: process.env.NEXTAUTH_URL,
   },
-  compress: true,
-  poweredByHeader: false,
-  swcMinify: true,
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  typescript: {
-    ignoreBuildErrors: false,
-  },
-  headers: async () => {
-    return [
-      {
-        source: '/(.*)',
-        headers: [
-          {
-            key: 'X-DNS-Prefetch-Control',
-            value: 'on'
-          },
-          {
-            key: 'Strict-Transport-Security',
-            value: 'max-age=63072000; includeSubDomains; preload'
-          }
-        ]
-      }
-    ]
-  },
+  // Explicitly configure source directory
   pageExtensions: ['js', 'jsx', 'ts', 'tsx'],
 }
 

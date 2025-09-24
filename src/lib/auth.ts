@@ -5,13 +5,26 @@ import GoogleProvider from 'next-auth/providers/google'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
 
+// Check required environment variables
+if (!process.env.NEXTAUTH_SECRET) {
+  throw new Error('NEXTAUTH_SECRET is required')
+}
+
+if (!process.env.NEXTAUTH_URL) {
+  throw new Error('NEXTAUTH_URL is required')
+}
+
 export const authOptions: NextAuthOptions = {
   // adapter: PrismaAdapter(prisma), // Disable untuk sementara karena menggunakan AuthUser model
   providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-    }),
+    // Only include Google provider if credentials are available
+    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && 
+        process.env.GOOGLE_CLIENT_ID !== "your-google-client-id" ? [
+      GoogleProvider({
+        clientId: process.env.GOOGLE_CLIENT_ID!,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      })
+    ] : []),
     CredentialsProvider({
       name: 'credentials',
       credentials: {
@@ -23,31 +36,36 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
-        const user = await prisma.authUser.findUnique({
+        try {
+          const user = await prisma.authUser.findUnique({
             where: {
               email: credentials.email,
             },
           })
 
-        if (!user || !user.password) {
+          if (!user || !user.password) {
+            return null
+          }
+
+          const isPasswordValid = await bcrypt.compare(
+            credentials.password,
+            user.password
+          )
+
+          if (!isPasswordValid) {
+            return null
+          }
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            image: user.image,
+            role: user.role,
+          }
+        } catch (error) {
+          console.error('Auth error:', error)
           return null
-        }
-
-        const isPasswordValid = await bcrypt.compare(
-          credentials.password,
-          user.password
-        )
-
-        if (!isPasswordValid) {
-          return null
-        }
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          image: user.image,
-          role: user.role,
         }
       }
     })
@@ -57,6 +75,20 @@ export const authOptions: NextAuthOptions = {
   },
   pages: {
     signIn: '/auth/signin',
+  },
+  debug: process.env.NODE_ENV === 'development',
+  logger: {
+    error(code, metadata) {
+      console.error('NextAuth Error:', code, metadata)
+    },
+    warn(code) {
+      console.warn('NextAuth Warning:', code)
+    },
+    debug(code, metadata) {
+      if (process.env.NODE_ENV === 'development') {
+        console.debug('NextAuth Debug:', code, metadata)
+      }
+    }
   },
   callbacks: {
     async jwt({ token, user }) {

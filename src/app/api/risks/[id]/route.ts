@@ -36,7 +36,11 @@ export async function GET(
         kontrolExisting: true,
         perlakuanRisiko: {
           include: {
-            pic: true,
+            pic: {
+              include: {
+                unit: true
+              }
+            },
             realisasi: true
           }
         },

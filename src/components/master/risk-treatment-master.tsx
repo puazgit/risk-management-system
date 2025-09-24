@@ -612,7 +612,7 @@ export function RiskTreatmentMaster() {
                         <div>
                           <div className="font-medium">{treatment.pic.name}</div>
                           <div className="text-sm text-muted-foreground">
-                            {treatment.pic.unit.name}
+                            {treatment.pic.unit?.name || 'Unit tidak tersedia'}
                           </div>
                         </div>
                       </TableCell>

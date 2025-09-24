@@ -48,6 +48,12 @@ export async function GET(request: NextRequest) {
             id: true,
             name: true,
             email: true,
+            unit: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
         realisasi: {
@@ -138,6 +144,12 @@ export async function POST(request: NextRequest) {
             id: true,
             name: true,
             email: true,
+            unit: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
       },

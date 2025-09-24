@@ -125,24 +125,31 @@ export default function RiskAssessmentPage() {
     try {
       setIsSubmitting(true)
 
+      // Calculate exposure scores correctly
+      const inherentExposure = data.dampakInheren * data.probabilitasInheren
+      const residualExposure = data.dampakResidual * data.probabilitasResidual
+
       // Transform form data to API format - send both inherent and residual
       const inherentPayload = {
         type: "INHERENT" as const,
-        dampakValue: data.dampakInheren * data.probabilitasInheren, // Calculate risk score
-        dampakScale: data.dampakInheren,
-        probValue: data.dampakInheren * data.probabilitasInheren, // Calculate risk score
-        probScale: data.probabilitasInheren,
+        dampakValue: data.dampakInheren, // Impact scale value
+        dampakScale: data.dampakInheren, // Impact scale
+        probValue: data.probabilitasInheren, // Probability scale value  
+        probScale: data.probabilitasInheren, // Probability scale
         penjelasanDampakKualitatif: data.catatan
       }
 
       const residualPayload = {
         type: "RESIDUAL" as const,
-        dampakValue: data.dampakResidual * data.probabilitasResidual, // Calculate risk score
-        dampakScale: data.dampakResidual,
-        probValue: data.dampakResidual * data.probabilitasResidual, // Calculate risk score
-        probScale: data.probabilitasResidual,
+        dampakValue: data.dampakResidual, // Impact scale value
+        dampakScale: data.dampakResidual, // Impact scale  
+        probValue: data.probabilitasResidual, // Probability scale value
+        probScale: data.probabilitasResidual, // Probability scale
         targetResidual: data.rencanaRespon
       }
+
+      console.log('Sending inherent payload:', inherentPayload)
+      console.log('Sending residual payload:', residualPayload)
 
       // Send inherent assessment
       const inherentResponse = await fetch(`/api/risks/${id}/assessment`, {
@@ -155,8 +162,12 @@ export default function RiskAssessmentPage() {
 
       if (!inherentResponse.ok) {
         const error = await inherentResponse.json()
+        console.error('Inherent response error:', error)
         throw new Error(error.message || 'Failed to save inherent assessment')
       }
+
+      const inherentResult = await inherentResponse.json()
+      console.log('Inherent result:', inherentResult)
 
       // Send residual assessment
       const residualResponse = await fetch(`/api/risks/${id}/assessment`, {
@@ -169,8 +180,12 @@ export default function RiskAssessmentPage() {
 
       if (!residualResponse.ok) {
         const error = await residualResponse.json()
+        console.error('Residual response error:', error)
         throw new Error(error.message || 'Failed to save residual assessment')
       }
+
+      const residualResult = await residualResponse.json()
+      console.log('Residual result:', residualResult)
 
       toast.success('Assessment berhasil disimpan')
       router.push(`/risks/${id}`)

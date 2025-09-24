@@ -48,6 +48,12 @@ export async function GET(
             id: true,
             name: true,
             email: true,
+            unit: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
         realisasi: {
@@ -156,6 +162,12 @@ export async function PUT(
             id: true,
             name: true,
             email: true,
+            unit: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
       },

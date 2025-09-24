@@ -4,14 +4,12 @@
   "framework": "nextjs",
   "functions": {
     "src/app/api/**/*.ts": {
-      "maxDuration": 30,
-      "memory": 1024
+      "maxDuration": 30
     }
   },
   "build": {
     "env": {
-      "SKIP_ENV_VALIDATION": "1",
-      "NEXT_TELEMETRY_DISABLED": "1"
+      "SKIP_ENV_VALIDATION": "1"
     }
   },
   "rewrites": [
@@ -19,50 +17,5 @@
       "source": "/api/(.*)",
       "destination": "/api/$1"
     }
-  ],
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=3600, must-revalidate"
-        },
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        },
-        {
-          "key": "X-Frame-Options",
-          "value": "DENY"
-        },
-        {
-          "key": "X-XSS-Protection",
-          "value": "1; mode=block"
-        }
-      ]
-    },
-    {
-      "source": "/api/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=300, s-maxage=600"
-        }
-      ]
-    },
-    {
-      "source": "/_next/static/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
-      ]
-    }
-  ],
-  "regions": ["iad1"],
-  "edge": {
-    "middlewareFiles": ["src/middleware.ts"]
-  }
+  ]
 }
